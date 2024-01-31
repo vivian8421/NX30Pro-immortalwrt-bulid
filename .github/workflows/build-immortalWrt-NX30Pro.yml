@@ -1,6 +1,8 @@
 name: Build immortalWrt
 
 on:
+  schedule:
+    - cron:  '0 17 * * *'
   repository_dispatch:
   workflow_dispatch:
     inputs:
@@ -97,7 +99,7 @@ jobs:
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
         echo "::set-output name=status::success"
-        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        grep '^CONFIG_TARGET_DEVICE_mediatek_mt7981_DEVICE_h3c_nx30pro' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
@@ -112,12 +114,12 @@ jobs:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: immortalWrt/bin
 
-    - name: Organize files
+    - name: Organize files[文件打包]
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd $GITHUB_WORKSPACE/immortalWrt/bin/packages
-        tar -zcvf Packages.tar.gz ./*
+        tar -zcvf Packages.tar.gz *.bin
         cp Packages.tar.gz $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
         cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
         rm -rf packages
@@ -138,7 +140,7 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: Upload OpenWrt Firmware to Release [发布]
+    - name: Upload OpenWrt Firmware to Release [Release发布]
       id: release
       uses: ncipollo/release-action@v1
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
@@ -152,6 +154,7 @@ jobs:
         artifacts: ${{ env.FIRMWARE }}/*
         body: |
           - 默认IP：192.168.6.1
+          - 默认账号：root
           - 默认密码：(空)
           - 当前使用版本:【编译前的最后一次[➦主源码](${{ env.REPO_URL }})更新记录】
           - 下载后请仔细校验MD5，如不正确请重新下载
@@ -159,18 +162,3 @@ jobs:
           
           `md5sum`
           > ${{ env.MD5 }}
-
-    - name: Delete workflow runs
-      uses: GitRML/delete-workflow-runs@main
-      with:
-        retain_days: 1
-        keep_minimum_runs: 3
-
-    - name: Remove old Releases
-      uses: dev-drprasad/delete-older-releases@v0.1.0
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        keep_latest: 3
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
