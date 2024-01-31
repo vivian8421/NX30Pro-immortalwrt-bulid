@@ -42,15 +42,27 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: Clone source code [克隆项目$REPO_URL]
+    - name: Clone source code [克隆项目]
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH immortalWrt
         ln -sf /workdir/immortalWrt $GITHUB_WORKSPACE/immortalWrt
         cd immortalWrt
+        lastCommitShortHash=$(git rev-parse --short HEAD)
+        echo "lastCommitShortHash" >> $LAST_SHORT_HASH
         useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H<br/>")
         echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
+    - name: Check need compile [检查是否需要编译]
+      working-directory: /workdir
+      run: |
+        LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
+        if [[ $LATEST_RELEASE == *"$LAST_SHORT_HASH"* ]]; then
+          echo "already exists in the latest release, stopping compile..."
+          exit 1
+        else
+          echo "need compile for a new release..."
+        fi
 
     - name: Cache
       uses: klever1988/cachewrtbuild@main
@@ -101,7 +113,7 @@ jobs:
         echo "::set-output name=status::success"
         grep '^CONFIG_TARGET_DEVICE_mediatek_mt7981_DEVICE_h3c_nx30pro' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
-        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+        echo "FILE_DATE=_$(date +"%Y-%m-%d %H:%M")" >> $GITHUB_ENV
 
     - name: Check space usage [检查磁盘状态]
       if: (!cancelled())
@@ -118,14 +130,12 @@ jobs:
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
-        cd $GITHUB_WORKSPACE/immortalWrt/bin/packages
-        tar -zcvf Packages.tar.gz *.bin
-        cp Packages.tar.gz $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
         cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
         rm -rf packages
+        find . -type f ! -name '*.bin' -exec rm -f {} \;
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "::set-output name=status::success"
-        echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
+        echo "::set-output name=release_tag::$(date +"%Y-%m-%d %H:%M")"
 
     - name: Calculate MD5 [计算MD5]
       run: |
@@ -133,7 +143,7 @@ jobs:
         MD5=$(md5sum * | sed ':a;N;$!ba;s/\n/<br>/g')
         echo "MD5=$MD5" >> $GITHUB_ENV
 
-    - name: Upload firmware directory
+    - name: Upload firmware directory [上传固件]
       uses: actions/upload-artifact@main
       if: steps.organize.outputs.status == 'success' && !cancelled()
       with:
@@ -145,20 +155,23 @@ jobs:
       uses: ncipollo/release-action@v1
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
-        name: R${{ steps.organize.outputs.release_tag }} for NX30Pro
+        name: R${{ steps.organize.outputs.release_tag }}-$LAST_SHORT_HASH
         allowUpdates: true
         removeArtifacts: true
-        tag: ${{ steps.organize.outputs.release_tag }}
+        tag: ${{ steps.organize.outputs.release_tag }}-$LAST_SHORT_HASH
         commit: main
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GH_TOKEN }}
         artifacts: ${{ env.FIRMWARE }}/*
         body: |
+          - 基于Hanwckf源代码编译，无任何插件。
+          - 每日17:00自动查询是否需要编译最新源码。
           - 默认IP：192.168.6.1
           - 默认账号：root
           - 默认密码：(空)
-          - 当前使用版本:【编译前的最后一次[➦主源码](${{ env.REPO_URL }})更新记录】
-          - 下载后请仔细校验MD5，如不正确请重新下载
-          ${{ env.useVersionInfo }}
-          
-          `md5sum`
+          - 当前使用版本:【编译前的最后一次[源码更新详情➦](${{ env.REPO_URL }}/commits/${{ env.REPO_BRANCH }})更新记录】
+          - 请仔细检查MD5以确保完整性后再进行刷入！
+          - 升级更新选择sysupgrade.bin,出厂设置请刷factory.bin。
+          - 升级前先下载备份，升级后还原备份后重新安装需要的插件即可。
+
+          `md5信息`
           > ${{ env.MD5 }}
