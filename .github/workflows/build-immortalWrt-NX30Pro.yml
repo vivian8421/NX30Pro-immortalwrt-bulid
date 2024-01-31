@@ -158,7 +158,7 @@ jobs:
         name: R${{ steps.organize.outputs.release_tag }}-$LAST_SHORT_HASH
         allowUpdates: true
         removeArtifacts: true
-        tag: ${{ steps.organize.outputs.release_tag }}-$LAST_SHORT_HASH
+        tag: $LAST_SHORT_HASH
         commit: main
         token: ${{ secrets.GH_TOKEN }}
         artifacts: ${{ env.FIRMWARE }}/*
