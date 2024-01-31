@@ -48,6 +48,7 @@ jobs:
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH immortalWrt
         ln -sf /workdir/immortalWrt $GITHUB_WORKSPACE/immortalWrt
+        cd immortalWrt
         useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H<br/>")
         echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
     - name: Check need compile [检查是否需要编译]
