@@ -2,7 +2,7 @@ name: Build immortalWrt
 
 on:
   schedule:
-    - cron:  '0 17 * * *'
+    - cron: '0 17 * * *'
   repository_dispatch:
   workflow_dispatch:
     inputs:
@@ -11,8 +11,8 @@ on:
         required: false
         default: 'false'
   watch:
-    types: [started]
-    
+    types: [ started ]
+
 env:
   REPO_URL: https://github.com/hanwckf/immortalwrt-mt798x
   REPO_BRANCH: openwrt-21.02
@@ -26,166 +26,165 @@ jobs:
   build:
     runs-on: Ubuntu-20.04
     steps:
-    - name: Checkout
-      uses: actions/checkout@main
+      - name: Checkout
+        uses: actions/checkout@main
 
-    - name: Initialize the compilation environment [初始化环境]
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
-        sudo -E apt-get -qq update
-        sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.eu.org/init_build_environment.sh)'
-        sudo -E apt-get -qq autoremove --purge
-        sudo -E apt-get -qq clean
-        sudo -E apt-get -qq install libfuse-dev
-        sudo timedatectl set-timezone "$TZ"
-        sudo mkdir -p /workdir
-        sudo chown $USER:$GROUPS /workdir
+      - name: Initialize the compilation environment [初始化环境]
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo -E apt-get -qq update
+          sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.eu.org/init_build_environment.sh)'
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          sudo -E apt-get -qq install libfuse-dev
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
 
-    - name: Clone source code [克隆项目]
-      working-directory: /workdir
-      run: |
-        df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH immortalWrt
-        ln -sf /workdir/immortalWrt $GITHUB_WORKSPACE/immortalWrt
-        cd immortalWrt
-        useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H<br/>")
-        echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
-    - name: Check need compile [检查是否需要编译]
-      working-directory: /workdir
-      run: |
-        cd immortalWrt
-        hash=$(git rev-parse --short HEAD)
-        echo "LAST_SHORT_HASH=$hash" >> $GITHUB_ENV
-        LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
-        if [[ "$LATEST_RELEASE" == *"$LAST_SHORT_HASH"* ]]; then
-          echo "already exists in the latest release, stopping compile..."
-          exit 1
-        else
-          echo "need compile for a new release..."
-        fi
+      - name: Clone source code [克隆项目]
+        working-directory: /workdir
+        run: |
+          df -hT $PWD
+          git clone $REPO_URL -b $REPO_BRANCH immortalWrt
+          ln -sf /workdir/immortalWrt $GITHUB_WORKSPACE/immortalWrt
+          cd immortalWrt
+          useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H<br/>")
+          echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
+      - name: Check need compile [检查是否需要编译]
 
-    - name: Send need compile to Telegram
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        message: "Start Compile"
-        document: ./path/to/your/file
+        working-directory: /workdir
+        run: |
+          cd immortalWrt
+          hash=$(git rev-parse --short HEAD)
+          echo "LAST_SHORT_HASH=$hash" >> $GITHUB_ENV
+          LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
+          if [[ "$LATEST_RELEASE" == *"$LAST_SHORT_HASH"* ]]; then
+            echo "already exists in the latest release, stopping compile..."
+            exit 1
+          else
+            echo "need compile for a new release..."
+          fi
+          
+      - name: Send need compile to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: "Start Compile"
 
+      - name: Cache
+        uses: klever1988/cachewrtbuild@main
+        with:
+          ccache: 'true'
+          prefix: ${{ github.workspace }}/immortalWrt
+      - name: Update feeds [更新配置]
+        run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
-    - name: Cache
-      uses: klever1988/cachewrtbuild@main
-      with:
-        ccache: 'true'
-        prefix: ${{ github.workspace }}/immortalWrt
-    - name: Update feeds [更新配置]
-      run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
-
-    - name: Modify default ip
-      run: |
-        cd immortalWrt
-        sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate
-        sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
-
+      - name: Modify default ip
+        run: |
+          cd immortalWrt
+          sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate
+          sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
 
 
-    - name: Replace configuration file [替换.config文件]
-      run: |
-        cd immortalWrt
-        rm -f ./.config*
-        cp ${GITHUB_WORKSPACE}/.config .
 
-    - name: Update feeds again
-      run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
+      - name: Replace configuration file [替换.config文件]
+        run: |
+          cd immortalWrt
+          rm -f ./.config*
+          cp ${GITHUB_WORKSPACE}/.config .
 
-
-    - name: Download package [依赖处理]
-      id: package
-      run: |
-        cd immortalWrt
-        make download -j8
-        find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
-
-    - name: Compile the firmware [进行编译]
-      id: compile
-      run: |
-        cd immortalWrt
-        echo -e "$(nproc) thread compile"
-        make -j$(nproc) || make -j1 || make -j1 V=s
-        echo "::set-output name=status::success"
-        grep '^CONFIG_TARGET_DEVICE_mediatek_mt7981_DEVICE_h3c_nx30pro' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
-        echo "FILE_DATE=_$(date +"%Y-%m-%d %H%M")" >> $GITHUB_ENV
-
-    - name: Check space usage [检查磁盘状态]
-      if: (!cancelled())
-      run: df -hT
-
-    - name: Upload bin directory [上传bin]
-      uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      with:
-        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-        path: immortalWrt/bin
-
-    - name: Organize files[文件打包]
-      id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
-      run: |
-        cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
-        rm -rf packages
-        find . -type f ! -name '*.bin' -exec rm -f {} \;
-        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-        echo "::set-output name=status::success"
-        echo "::set-output name=release_tag::$(date +"%Y-%m-%d %H%M")"
-
-    - name: Calculate MD5 [计算MD5]
-      run: |
-        cd ${{ env.FIRMWARE }} && rm -rf sha256sums
-        MD5=$(md5sum * | awk '{ print $2 " " $1 }' | sed ':a;N;$!ba;s/\n/<br>/g')
-        echo "MD5=$MD5" >> $GITHUB_ENV
-
-    - name: Upload firmware directory [上传固件]
-      uses: actions/upload-artifact@main
-      if: steps.organize.outputs.status == 'success' && !cancelled()
-      with:
-        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-        path: ${{ env.FIRMWARE }}
+      - name: Update feeds again
+        run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
 
-    - name: Send File to Telegram
-      uses: appleboy/telegram-action@master
-      with:
-        to: ${{ secrets.TELEGRAM_CHAT_ID }}
-        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        message: "File"
-        document: ${{ env.FIRMWARE }}
+      - name: Download package [依赖处理]
+        id: package
+        run: |
+          cd immortalWrt
+          make download -j8
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
 
-    - name: Upload OpenWrt Firmware to Release [Release发布]
-      id: release
-      uses: ncipollo/release-action@v1
-      if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}
-        allowUpdates: true
-        removeArtifacts: true
-        tag: ${{ env.LAST_SHORT_HASH }}
-        commit: main
-        token: ${{ secrets.GH_TOKEN }}
-        artifacts: ${{ env.FIRMWARE }}/*
-        body: |
-          - 基于Hanwckf源代码编译，无任何插件。
-          - 每日17:00自动查询是否需要编译最新源码。
-          - 默认IP：192.168.6.1
-          - 默认账号：root
-          - 默认密码：(空)
-          - Head Hash比对 当前:${{ env.LAST_SHORT_HASH }} / 源码更新详情[点击这里查看](${{ env.REPO_URL }}/commits/${{ env.REPO_BRANCH }})
-          - 请仔细检查MD5以确保完整性后再进行刷入！
-          - 升级更新选择sysupgrade.bin,出厂设置请刷factory.bin。
-          - 升级前先下载备份，升级后还原备份后重新安装需要的插件即可。
+      - name: Compile the firmware [进行编译]
+        id: compile
+        run: |
+          cd immortalWrt
+          echo -e "$(nproc) thread compile"
+          make -j$(nproc) || make -j1 || make -j1 V=s
+          echo "::set-output name=status::success"
+          grep '^CONFIG_TARGET_DEVICE_mediatek_mt7981_DEVICE_h3c_nx30pro' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+          [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+          echo "FILE_DATE=_$(date +"%Y-%m-%d %H%M")" >> $GITHUB_ENV
 
-          `md5信息`
-          > ${{ env.MD5 }}
+      - name: Check space usage [检查磁盘状态]
+        if: (!cancelled())
+        run: df -hT
+
+      - name: Upload bin directory [上传bin]
+        uses: actions/upload-artifact@main
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+        with:
+          name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: immortalWrt/bin
+
+      - name: Organize files[文件打包]
+        id: organize
+        if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+        run: |
+          cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
+          rm -rf packages
+          find . -type f ! -name '*.bin' -exec rm -f {} \;
+          echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+          echo "::set-output name=status::success"
+          echo "::set-output name=release_tag::$(date +"%Y-%m-%d %H%M")"
+
+      - name: Calculate MD5 [计算MD5]
+        run: |
+          cd ${{ env.FIRMWARE }} && rm -rf sha256sums
+          MD5=$(md5sum * | awk '{ print $2 " " $1 }' | sed ':a;N;$!ba;s/\n/<br>/g')
+          echo "MD5=$MD5" >> $GITHUB_ENV
+
+      - name: Upload firmware directory [上传固件]
+        uses: actions/upload-artifact@main
+        if: steps.organize.outputs.status == 'success' && !cancelled()
+        with:
+          name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+          path: ${{ env.FIRMWARE }}
+
+
+      - name: Send File to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: "File"
+          document: ${{ env.FIRMWARE }}
+
+      - name: Upload OpenWrt Firmware to Release [Release发布]
+        id: release
+        uses: ncipollo/release-action@v1
+        if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
+        with:
+          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}
+          allowUpdates: true
+          removeArtifacts: true
+          tag: ${{ env.LAST_SHORT_HASH }}
+          commit: main
+          token: ${{ secrets.GH_TOKEN }}
+          artifacts: ${{ env.FIRMWARE }}/*
+          body: |
+            - 基于Hanwckf源代码编译，无任何插件。
+            - 每日17:00自动查询是否需要编译最新源码。
+            - 默认IP：192.168.6.1
+            - 默认账号：root
+            - 默认密码：(空)
+            - Head Hash比对 当前:${{ env.LAST_SHORT_HASH }} / 源码更新详情[点击这里查看](${{ env.REPO_URL }}/commits/${{ env.REPO_BRANCH }})
+            - 请仔细检查MD5以确保完整性后再进行刷入！
+            - 升级更新选择sysupgrade.bin,出厂设置请刷factory.bin。
+            - 升级前先下载备份，升级后还原备份后重新安装需要的插件即可。
+
+            `md5信息`
+            > ${{ env.MD5 }}
