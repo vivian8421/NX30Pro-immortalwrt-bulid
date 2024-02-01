@@ -20,6 +20,7 @@ env:
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
+  LAST_SHORT_HASH:''
 
 jobs:
   build:
@@ -55,7 +56,8 @@ jobs:
       working-directory: /workdir
       run: |
         cd immortalWrt
-        LAST_SHORT_HASH=$(git rev-parse --short HEAD)
+        hash=$(git rev-parse --short HEAD)
+        echo "LAST_SHORT_HASH=$hash" >> $GITHUB_ENV
         LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
         if [[ "$LATEST_RELEASE" == *"$LAST_SHORT_HASH"* ]]; then
           echo "already exists in the latest release, stopping compile..."
@@ -63,6 +65,15 @@ jobs:
         else
           echo "need compile for a new release..."
         fi
+
+    - name: Send need compile to Telegram
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        message: "Start Compile"
+        document: ./path/to/your/file
+
 
     - name: Cache
       uses: klever1988/cachewrtbuild@main
@@ -89,12 +100,6 @@ jobs:
     - name: Update feeds again
       run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
-    - name: SSH connection to Actions
-      uses: P3TERX/ssh2actions@v1.0.0
-      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
-      env:
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
     - name: Download package [依赖处理]
       id: package
@@ -140,7 +145,7 @@ jobs:
     - name: Calculate MD5 [计算MD5]
       run: |
         cd ${{ env.FIRMWARE }} && rm -rf sha256sums
-        MD5=$(md5sum * | sed ':a;N;$!ba;s/\n/<br>/g')
+        MD5=$(md5sum * | awk '{ print $2 " " $1 }' | sed ':a;N;$!ba;s/\n/<br>/g')
         echo "MD5=$MD5" >> $GITHUB_ENV
 
     - name: Upload firmware directory [上传固件]
@@ -150,15 +155,24 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
+
+    - name: Send File to Telegram
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        message: "File"
+        document: ${{ env.FIRMWARE }}
+
     - name: Upload OpenWrt Firmware to Release [Release发布]
       id: release
       uses: ncipollo/release-action@v1
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
-        name: R${{ steps.organize.outputs.release_tag }}-$LAST_SHORT_HASH
+        name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}
         allowUpdates: true
         removeArtifacts: true
-        tag: $LAST_SHORT_HASH
+        tag: ${{ env.LAST_SHORT_HASH }}
         commit: main
         token: ${{ secrets.GH_TOKEN }}
         artifacts: ${{ env.FIRMWARE }}/*
@@ -168,7 +182,7 @@ jobs:
           - 默认IP：192.168.6.1
           - 默认账号：root
           - 默认密码：(空)
-          - 当前使用版本:【编译前的最后一次[源码更新详情➦](${{ env.REPO_URL }}/commits/${{ env.REPO_BRANCH }})更新记录】
+          - Head Hash比对 当前:${{ env.LAST_SHORT_HASH }} / 源码更新详情[点击这里查看](${{ env.REPO_URL }}/commits/${{ env.REPO_BRANCH }})
           - 请仔细检查MD5以确保完整性后再进行刷入！
           - 升级更新选择sysupgrade.bin,出厂设置请刷factory.bin。
           - 升级前先下载备份，升级后还原备份后重新安装需要的插件即可。
