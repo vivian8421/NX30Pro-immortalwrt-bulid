@@ -52,17 +52,13 @@ jobs:
           cd immortalWrt
           useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H<br/>")
           echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
+          echo "LAST_SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Check need compile [检查是否需要编译]
         working-directory: /workdir
         run: |
           cd immortalWrt
-          echo "LAST_SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
-
-          echo "$LATEST_RELEASE"
-          echo "${{ env.LAST_SHORT_HASH }}"
-
           if [[ "$LATEST_RELEASE" == *"${{ env.LAST_SHORT_HASH }}"* ]]; then
             echo "already exists in the latest release, stopping compile..."
             exit 1
