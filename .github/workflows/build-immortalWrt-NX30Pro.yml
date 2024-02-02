@@ -160,7 +160,14 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: "File"
-          document: ${{ env.FIRMWARE }}
+          document: ${{ env.FIRMWARE }}/*
+
+
+      - name: Prepare release tag
+        id: release_tag
+        run: |
+          DATE_PREFIX=$(date +%d%m%y)
+          echo "::set-output name=date_prefix::${DATE_PREFIX}"
 
       - name: Upload OpenWrt Firmware to Release [Release发布]
         id: release
@@ -170,7 +177,7 @@ jobs:
           name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}
           allowUpdates: true
           removeArtifacts: true
-          tag: ${{ env.LAST_SHORT_HASH }}
+          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}
           commit: main
           token: ${{ secrets.GH_TOKEN }}
           artifacts: ${{ env.FIRMWARE }}/*
@@ -187,3 +194,13 @@ jobs:
 
             `md5信息`
             > ${{ env.MD5 }}
+
+      - name: Update latest tag
+        run: |
+          git config --local user.email "vivian84217963@gmail.com"
+          git config --local user.name "vivian8421"
+          git pull --unshallow
+          git tag -f latest ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}
+          git push origin --tags -f
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
