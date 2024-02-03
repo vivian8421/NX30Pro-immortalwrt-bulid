@@ -134,9 +134,9 @@ jobs:
         if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
           cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
-          cp $GITHUB_WORKSPACE/zfb.jpg ./支付宝打赏.jpg
           rm -rf packages
           find . -type f ! -name '*.bin' -exec rm -f {} \;
+          cp $GITHUB_WORKSPACE/zfb.jpg ./支付宝打赏.jpg
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "::set-output name=status::success"
           echo "::set-output name=release_tag::$(date +"%Y-%m-%d %H%M")"
