@@ -134,6 +134,7 @@ jobs:
         if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
           cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
+          cp $GITHUB_WORKSPACE/zfb.jpg ./支付宝打赏.jpg
           rm -rf packages
           find . -type f ! -name '*.bin' -exec rm -f {} \;
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
@@ -166,7 +167,7 @@ jobs:
       - name: Prepare release tag
         id: release_tag
         run: |
-          DATE_PREFIX=$(date +%d%m%y)
+          DATE_PREFIX=$(date +%y%m%d)
           echo "::set-output name=date_prefix::${DATE_PREFIX}"
 
       - name: Upload OpenWrt Firmware to Release [Release发布]
@@ -195,6 +196,8 @@ jobs:
 
             `md5信息`
             > ${{ env.MD5 }}
+            - 如果您觉得该项目对您有帮助并愿意打赏,请点击 支付宝.jpg。
+
 
       - name: Update latest tag
         run: |
