@@ -136,7 +136,6 @@ jobs:
           cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
           rm -rf packages
           find . -type f ! -name '*.bin' -exec rm -f {} \;
-          cp $GITHUB_WORKSPACE/zfb.jpg ./支付宝打赏.jpg
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "::set-output name=status::success"
           echo "::set-output name=release_tag::$(date +"%Y-%m-%d %H%M")"
@@ -196,7 +195,8 @@ jobs:
 
             `md5信息`
             > ${{ env.MD5 }}
-            - 如果您觉得该项目对您有帮助并愿意打赏,请点击 支付宝.jpg。
+            - 如果您觉得该项目对您有帮助并愿意打赏,欢迎您捐助打赏。
+            ![Image description](https://raw.githubusercontent.com/vivian8421/NX30Pro-immortalwrt-bulid/main/zfb.jpg)
 
 
       - name: Update latest tag
