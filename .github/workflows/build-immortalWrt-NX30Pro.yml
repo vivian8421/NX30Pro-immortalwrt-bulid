@@ -128,7 +128,7 @@ jobs:
           echo "FILE_DATE=_$(date +"%Y-%m-%d %H%M")" >> $GITHUB_ENV
 
       - name: Check space usage [检查磁盘状态]
-        if: (!cancelled())
+        if: steps.checkNeed.outputs.status == 'success' && (!cancelled())
         run: df -hT
 
       - name: Upload bin directory [上传bin]
@@ -140,7 +140,7 @@ jobs:
 
       - name: Organize files[文件打包]
         id: organize
-        if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+        if:  steps.checkNeed.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
         run: |
           cd $GITHUB_WORKSPACE/immortalWrt/bin/targets/*/*
           rm -rf packages
