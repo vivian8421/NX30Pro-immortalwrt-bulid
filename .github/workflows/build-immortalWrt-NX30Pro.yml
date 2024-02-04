@@ -61,6 +61,7 @@ jobs:
           LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
           if [[ "$LATEST_RELEASE" == *"${{ env.LAST_SHORT_HASH }}"* ]]; then
             echo "already exists in the latest release, stopping compile..."
+            echo "::cancel::"
             exit 1
           else
             echo "need compile for a new release..."
