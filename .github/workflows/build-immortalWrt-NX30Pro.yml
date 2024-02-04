@@ -83,6 +83,7 @@ jobs:
           ccache: 'true'
           prefix: ${{ github.workspace }}/immortalWrt
       - name: Update feeds [更新配置]
+        if: steps.checkNeed.outputs.status == 'success'
         run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
       - name: Modify default ip
