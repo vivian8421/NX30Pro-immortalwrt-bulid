@@ -195,7 +195,7 @@ jobs:
 
             `md5信息`
             > ${{ env.MD5 }}
-            - - **如果您觉得该项目对您有帮助并愿意打赏,欢迎您捐助打赏，请点击<a href="https://raw.githubusercontent.com/vivian8421/NX30Pro-immortalwrt-bulid/main/zfb.jpg)" target="_blank" rel="noopener">这里</a>**
+            - **如果您觉得该项目对您有帮助并愿意打赏,欢迎您捐助打赏，请点击<a href="https://raw.githubusercontent.com/vivian8421/NX30Pro-immortalwrt-bulid/main/zfb.jpg)" target="_blank" rel="noopener">这里</a>**
 
 
       - name: Update latest tag
