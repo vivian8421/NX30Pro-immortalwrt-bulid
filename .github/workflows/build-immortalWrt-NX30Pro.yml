@@ -55,19 +55,21 @@ jobs:
           echo "LAST_SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Check need compile [检查是否需要编译]
+        id: checkNeed
         working-directory: /workdir
         run: |
           cd immortalWrt
           LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
           if [[ "$LATEST_RELEASE" == *"${{ env.LAST_SHORT_HASH }}"* ]]; then
             echo "already exists in the latest release, stopping compile..."
-            echo "::cancel::"
-            exit 1
+            echo "::set-output name=status::false"
           else
             echo "need compile for a new release..."
+            echo "::set-output name=status::success"
           fi
 
       - name: Send need compile to Telegram
+        if: steps.checkNeed.outputs.status == 'success'
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -75,6 +77,7 @@ jobs:
           message: "Start Compile"
 
       - name: Cache
+        if: steps.checkNeed.outputs.status == 'success'
         uses: klever1988/cachewrtbuild@main
         with:
           ccache: 'true'
@@ -83,6 +86,7 @@ jobs:
         run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
       - name: Modify default ip
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           cd immortalWrt
           sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate
@@ -91,17 +95,20 @@ jobs:
 
 
       - name: Replace configuration file [替换.config文件]
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           cd immortalWrt
           rm -f ./.config*
           cp ${GITHUB_WORKSPACE}/.config .
 
       - name: Update feeds again
+        if: steps.checkNeed.outputs.status == 'success'
         run: cd immortalWrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
 
       - name: Download package [依赖处理]
         id: package
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           cd immortalWrt
           make download -j8
@@ -110,6 +117,7 @@ jobs:
 
       - name: Compile the firmware [进行编译]
         id: compile
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           cd immortalWrt
           echo -e "$(nproc) thread compile"
@@ -125,7 +133,7 @@ jobs:
 
       - name: Upload bin directory [上传bin]
         uses: actions/upload-artifact@main
-        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+        if: steps.checkNeed.outputs.status == 'success' && steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
         with:
           name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
           path: immortalWrt/bin
@@ -142,6 +150,7 @@ jobs:
           echo "::set-output name=release_tag::$(date +"%Y-%m-%d %H%M")"
 
       - name: Calculate MD5 [计算MD5]
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           cd ${{ env.FIRMWARE }} && rm -rf sha256sums
           MD5=$(md5sum * | awk '{ print $2 " " $1 }' | sed ':a;N;$!ba;s/\n/<br>/g')
@@ -149,7 +158,7 @@ jobs:
 
       - name: Upload firmware directory [上传固件]
         uses: actions/upload-artifact@main
-        if: steps.organize.outputs.status == 'success' && !cancelled()
+        if: steps.checkNeed.outputs.status == 'success' && steps.organize.outputs.status == 'success' && !cancelled()
         with:
           name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
           path: ${{ env.FIRMWARE }}
@@ -157,6 +166,7 @@ jobs:
 
       - name: Send File to Telegram
         uses: appleboy/telegram-action@master
+        if: steps.checkNeed.outputs.status == 'success'
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -166,6 +176,7 @@ jobs:
 
       - name: Prepare release tag
         id: release_tag
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           DATE_PREFIX=$(date +%y%m%d)
           echo "::set-output name=date_prefix::${DATE_PREFIX}"
@@ -173,7 +184,7 @@ jobs:
       - name: Upload OpenWrt Firmware to Release [Release发布]
         id: release
         uses: ncipollo/release-action@v1
-        if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
+        if: steps.checkNeed.outputs.status == 'success' && steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
           name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}
           allowUpdates: true
@@ -200,6 +211,7 @@ jobs:
 
 
       - name: Update latest tag
+        if: steps.checkNeed.outputs.status == 'success'
         run: |
           git config --local user.email "vivian84217963@gmail.com"
           git config --local user.name "vivian8421"
