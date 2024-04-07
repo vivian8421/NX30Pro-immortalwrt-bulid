@@ -42,7 +42,6 @@ on:
             - 'cmcc_a10'
             - 'cmcc_rax3000m'
             - 'cmcc_rax3000m-emmc'
-            - 'h3c_nx30pro'
             - 'konka_komi-a31'
             - 'imou_lc-hx3001'
             - 'nradio_wt9103'
@@ -99,7 +98,8 @@ jobs:
         run: |
           cd immortalWrt
           LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
-          if [[ "$LATEST_RELEASE" == *"${{ env.LAST_SHORT_HASH }}"* ]]; then
+          MODEL_NAME=${{ replace(github.event.inputs.my-input, '_', '-') }}
+          if [[ "$LATEST_RELEASE" == *"${{ env.LAST_SHORT_HASH }}"* ]]  && [[ "$LATEST_RELEASE" == *"$MODEL_NAME"* ]]; then
             echo "already exists in the latest release, stopping compile..."
             echo "::set-output name=status::false"
           else
@@ -228,10 +228,10 @@ jobs:
         uses: ncipollo/release-action@v1
         if: steps.checkNeed.outputs.status == 'success' && steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
-          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}
+          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }
           allowUpdates: true
           removeArtifacts: true
-          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}
+          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }
           commit: main
           token: ${{ secrets.GH_TOKEN }}
           artifacts: ${{ env.FIRMWARE }}/*
