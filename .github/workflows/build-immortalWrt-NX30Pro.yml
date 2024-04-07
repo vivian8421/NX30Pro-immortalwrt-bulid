@@ -98,7 +98,7 @@ jobs:
         run: |
           cd immortalWrt
           LATEST_RELEASE=`curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" --silent  "https://api.github.com/repos/vivian8421/NX30Pro-immortalwrt-bulid/releases/latest" | jq -r .name`
-          MODEL_NAME=${{ replace(github.event.inputs.my-input, '_', '-') }}
+          MODEL_NAME=`echo "${{ github.event.inputs.my-input }}" | tr '_' '-'`
           if [[ "$LATEST_RELEASE" == *"${{ env.LAST_SHORT_HASH }}"* ]]  && [[ "$LATEST_RELEASE" == *"$MODEL_NAME"* ]]; then
             echo "already exists in the latest release, stopping compile..."
             echo "::set-output name=status::false"
@@ -223,15 +223,19 @@ jobs:
           DATE_PREFIX=$(date +%y%m%d)
           echo "::set-output name=date_prefix::${DATE_PREFIX}"
 
+      - name: Process Input
+        id: process
+        run: echo "::set-output name=model_name::$(echo ${{ github.event.inputs.my-input }} | tr '_' '-')"
+
       - name: Upload OpenWrt Firmware to Release [Release发布]
         id: release
         uses: ncipollo/release-action@v1
         if: steps.checkNeed.outputs.status == 'success' && steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
-          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }}
+          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}-${{ steps.process.outputs.model_name }}
           allowUpdates: true
           removeArtifacts: true
-          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }}
+          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}-${{ steps.process.outputs.model_name }}
           commit: main
           token: ${{ secrets.GH_TOKEN }}
           artifacts: ${{ env.FIRMWARE }}/*
