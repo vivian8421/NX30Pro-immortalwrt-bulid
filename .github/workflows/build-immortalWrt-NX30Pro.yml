@@ -6,10 +6,16 @@ on:
   repository_dispatch:
   workflow_dispatch:
     inputs:
-      ssh:
-        description: 'Actions'
-        required: false
-        default: 'false'
+      my-input:
+        description: 'Select a model'
+        type: choice
+          options:
+            - 'h3c_nx30pro'
+            - 'Option 2'
+            - 'Option 3'
+          default: 'h3c_nx30pro'
+        required: true
+        default: 'h3c_nx30pro'
   watch:
     types: [ started ]
 
