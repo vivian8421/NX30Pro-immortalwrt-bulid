@@ -7,12 +7,46 @@ on:
   workflow_dispatch:
     inputs:
       my-input:
-        description: 'Select a model'
+        description: 'Select a device'
         type: choice
         options:
             - 'h3c_nx30pro'
-            - 'Option 2'
-            - 'Option 3'
+            - 'mt7981-spim-nor-rfb'
+            - 'mt7981-spim-nand-2500wan-gmac2'
+            - 'mt7981-spim-nand-rfb'
+            - 'mt7981-spim-nand-gsw'
+            - 'mt7981-emmc-rfb'
+            - 'mt7981-sd-rfb'
+            - 'mt7981-snfi-nand-2500wan-p5'
+            - 'mt7981-fpga-spim-nor'
+            - 'mt7981-fpga-snfi-nand'
+            - 'mt7981-fpga-spim-nand'
+            - 'mt7981-fpga-emmc'
+            - 'mt7981-fpga-sd'
+            - 'mt7981-360-t7'
+            - 'mt7981-360-t7-108M'
+            - 'abt_asr3000'
+            - 'cetron_ct3003'
+            - 'mt7981-clt-r30b1'
+            - 'mt7981-clt-r30b1-112M'
+            - 'xiaomi_mi-router-wr30u-stock'
+            - 'xiaomi_mi-router-wr30u-112m'
+            - 'xiaomi_mi-router-ax3000t-stock'
+            - 'xiaomi_mi-router-ax3000t'
+            - 'glinet_gl-mt3000'
+            - 'glinet_gl-x3000'
+            - 'glinet_gl-xe3000'
+            - 'glinet_gl-mt2500'
+            - 'jcg_q30'
+            - 'livinet_zr-3020'
+            - 'cmcc_a10'
+            - 'cmcc_rax3000m'
+            - 'cmcc_rax3000m-emmc'
+            - 'h3c_nx30pro'
+            - 'konka_komi-a31'
+            - 'imou_lc-hx3001'
+            - 'nradio_wt9103'
+            - 'nradio_wt9103_512m'
         required: true
         default: 'h3c_nx30pro'
   watch:
@@ -106,6 +140,8 @@ jobs:
           cd immortalWrt
           rm -f ./.config*
           cp ${GITHUB_WORKSPACE}/.config .
+          sed -i 's/h3c_nx30pro/${{ github.event.inputs.my-input }}/g' .config
+
 
       - name: Update feeds again
         if: steps.checkNeed.outputs.status == 'success'
@@ -200,7 +236,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           artifacts: ${{ env.FIRMWARE }}/*
           body: |
-            - 本项目是基于Hanwckf源代码编译，**适用于H3C-NX30Pro设备**，无任何第三方软件包。
+            - 本项目是基于Hanwckf源代码编译，**适用于${{ github.event.inputs.my-input }}设备**，无任何第三方软件包。
             - 本项目每日17时自动查询是否需要编译最新源码，如更新完成将在本页面自动顶置最新版本。
             - 历史版本将自动保留在下方。
             - 默认IP：192.168.6.1
