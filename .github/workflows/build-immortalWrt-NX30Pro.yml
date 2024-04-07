@@ -13,7 +13,6 @@ on:
             - 'h3c_nx30pro'
             - 'Option 2'
             - 'Option 3'
-          default: 'h3c_nx30pro'
         required: true
         default: 'h3c_nx30pro'
   watch:
