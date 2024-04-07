@@ -228,10 +228,10 @@ jobs:
         uses: ncipollo/release-action@v1
         if: steps.checkNeed.outputs.status == 'success' && steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
-          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }
+          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }}
           allowUpdates: true
           removeArtifacts: true
-          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }
+          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}-${{ replace(github.event.inputs.my-input, '_', '-') }}
           commit: main
           token: ${{ secrets.GH_TOKEN }}
           artifacts: ${{ env.FIRMWARE }}/*
