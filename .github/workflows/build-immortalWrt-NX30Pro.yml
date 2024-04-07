@@ -9,7 +9,7 @@ on:
       my-input:
         description: 'Select a model'
         type: choice
-          options:
+        options:
             - 'h3c_nx30pro'
             - 'Option 2'
             - 'Option 3'
