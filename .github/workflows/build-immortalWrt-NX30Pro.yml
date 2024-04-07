@@ -232,16 +232,15 @@ jobs:
         uses: ncipollo/release-action@v1
         if: steps.checkNeed.outputs.status == 'success' && steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
-          name: R${{ steps.organize.outputs.release_tag }}-${{ env.LAST_SHORT_HASH }}-${{ steps.process.outputs.model_name }}
+          name: R${{ steps.organize.outputs.release_tag }}-${{ steps.process.outputs.model_name }}-${{ env.LAST_SHORT_HASH }}
           allowUpdates: true
           removeArtifacts: true
-          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}-${{ steps.process.outputs.model_name }}
+          tag: ${{ steps.release_tag.outputs.date_prefix }}-${{ steps.process.outputs.model_name }}-${{ env.LAST_SHORT_HASH }}
           commit: main
           token: ${{ secrets.GH_TOKEN }}
           artifacts: ${{ env.FIRMWARE }}/*
           body: |
-            - 本项目是基于Hanwckf源代码编译，**适用于${{ github.event.inputs.my-input }}设备**，无任何第三方软件包。
-            - 本项目每日17时自动查询是否需要编译最新源码，如更新完成将在本页面自动顶置最新版本。
+            - 本项目是基于Hanwckf源代码编译，**当前选择编译适用于${{ github.event.inputs.my-input }}设备**，无任何第三方软件包。
             - 历史版本将自动保留在下方。
             - 默认IP：192.168.6.1
             - 默认账号：root
@@ -262,7 +261,7 @@ jobs:
           git config --local user.email "vivian84217963@gmail.com"
           git config --local user.name "vivian8421"
           git pull --unshallow
-          git tag -f latest ${{ steps.release_tag.outputs.date_prefix }}-${{ env.LAST_SHORT_HASH }}
+          git tag -f latest ${{ steps.release_tag.outputs.date_prefix }}-${{ steps.process.outputs.model_name }}-${{ env.LAST_SHORT_HASH }}
           git push origin --tags -f
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
